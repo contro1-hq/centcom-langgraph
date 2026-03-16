@@ -1,0 +1,31 @@
+[project]
+name = "centcom-langgraph"
+version = "0.1.0"
+description = "CENTCOM Human Approval connector for LangGraph — pause AI workflows for human decisions"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Contro1", email = "dev@contro1.com" }]
+keywords = ["centcom", "langgraph", "human-in-the-loop", "hitl", "approval"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "centcom>=1.0.0",
+    "langgraph>=0.2.0",
+]
+
+[project.optional-dependencies]
+webhook = ["fastapi>=0.100.0"]
+
+[project.urls]
+Homepage = "https://contro1.com"
+Documentation = "https://contro1.com/docs"
+Repository = "https://github.com/contro1-hq/centcom-langgraph"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
