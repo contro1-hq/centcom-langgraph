@@ -1,7 +1,7 @@
 [project]
 name = "centcom-langgraph"
 version = "0.1.0"
-description = "CENTCOM Human Approval connector for LangGraph — pause AI workflows for human decisions"
+description = "CENTCOM Human Approval connector for LangGraph - pause AI workflows for human decisions"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -27,5 +27,5 @@ Documentation = "https://contro1.com/docs"
 Repository = "https://github.com/contro1-hq/centcom-langgraph"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling<1.27"]
 build-backend = "hatchling.build"
