@@ -53,6 +53,7 @@ result = app.invoke(
 ## Official Resources
 
 - SDK repository: [github.com/contro1-hq/centcom-langgraph](https://github.com/contro1-hq/centcom-langgraph)
+- Core Python SDK (`centcom`): [github.com/contro1-hq/centcom](https://github.com/contro1-hq/centcom)
 - Official skill file: [skills/centcom-langgraph.md](https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md)
 
 ## API
