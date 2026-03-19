@@ -54,6 +54,31 @@ graph.add_node("human_approval", centcom_approval(
 ))
 ```
 
+Role routing semantics:
+- `required_role` set (for example `operator`, `manager`, `admin`) means only operators with that role can see/claim the request.
+- `required_role` omitted means the request is visible to all eligible operators.
+- Non-matching role claim attempts are rejected by the API with `403 forbidden`.
+- Use only existing org roles (built-in or custom org-defined roles); do not invent new role names in examples.
+
+Mini example:
+```python
+graph.add_node("approve_deploy", centcom_approval(
+    type="approval",
+    question="Approve production deploy?",
+    context="Release includes billing migration.",
+    callback_url="https://my-app.com/centcom-webhook",
+    required_role="admin",
+))
+```
+
+Examples:
+```python
+graph.add_node("operator_approval", centcom_approval(..., required_role="operator"))
+graph.add_node("manager_approval", centcom_approval(..., required_role="manager"))
+graph.add_node("admin_approval", centcom_approval(..., required_role="admin"))
+graph.add_node("open_queue_approval", centcom_approval(...))  # no required_role
+```
+
 ## Step 4: Wire the Edges
 
 ```python
@@ -125,6 +150,7 @@ app = graph.compile(checkpointer=PostgresSaver(conn_string))
 - **Webhook-only flow**: Operator answers in dashboard, response always arrives via webhook
 - **Conditional approval**: Use `question=lambda s: ...` for dynamic questions based on state
 - **Agent tool**: For agent graphs where LLM decides when to ask, use `centcom_tool()` instead
+- **Role filters**: `required_role` is optional; when provided, it limits who can claim/respond to the request
 
 ## Common Patterns
 
