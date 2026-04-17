@@ -1,4 +1,4 @@
-"""Optional webhook handler helper — bridges CENTCOM webhooks to LangGraph resume."""
+"""Optional webhook handler helper - bridges CENTCOM webhooks to LangGraph resume."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def create_webhook_handler(
 
         # Verify HMAC signature
         if not verify_webhook(raw_text, signature, timestamp, webhook_secret):
-            logger.warning("Invalid webhook signature — rejecting")
+            logger.warning("Invalid webhook signature - rejecting")
             return {"error": "Invalid signature", "status": 401}
 
         # Parse payload
@@ -80,7 +80,7 @@ def create_webhook_handler(
         thread_id = resolve_thread_id(payload)
 
         if not thread_id:
-            logger.warning("No thread_id in webhook payload metadata — cannot resume")
+            logger.warning("No thread_id in webhook payload metadata - cannot resume")
             return {"error": "Missing thread_id in metadata", "status": 400}
 
         # Resume the LangGraph thread

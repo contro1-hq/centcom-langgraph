@@ -8,7 +8,7 @@ from typing import Callable, Optional, Union
 from centcom import CentcomClient
 from langgraph.types import interrupt
 
-from .types import INTERACTION_TYPES, NODE_NAME_KEY, THREAD_ID_KEY
+from .types import CONTINUATION_MODES, INTERACTION_TYPES, NODE_NAME_KEY, THREAD_ID_KEY
 
 # Type alias: static value or callable that receives state
 Resolvable = Union[str, Callable[[dict], str]]
@@ -37,6 +37,8 @@ def centcom_approval(
     base_url: str = "https://contro1.com/api/centcom/v1",
     priority: str = "normal",
     required_role: Optional[str] = None,
+    continuation_mode: str = "decision",
+    department: Optional[str] = None,
     metadata: ResolvableDict = None,
 ) -> Callable:
     """Factory that returns a LangGraph-compatible node function for CENTCOM approval.
@@ -45,7 +47,7 @@ def centcom_approval(
     interrupt(), waiting for external resume via Command(resume=webhook_payload).
 
     Args:
-        type: Interaction type — "yes_no", "free_text", or "approval".
+        type: Interaction type - "yes_no", "free_text", or "approval".
               Can be a callable (state) -> str for dynamic values.
         question: The question for the human operator.
         context: Background info displayed to the operator.
@@ -54,6 +56,8 @@ def centcom_approval(
         base_url: CENTCOM API base URL.
         priority: "normal" (10 min SLA) or "urgent" (3 min SLA).
         required_role: Role required to answer (e.g. "manager").
+        continuation_mode: "decision" or "instruction" response mode.
+        department: Optional department id for routing metadata.
         metadata: Extra data returned in the callback. Can be callable.
                   thread_id is auto-injected for webhook correlation.
     Returns:
@@ -96,6 +100,10 @@ def centcom_approval(
             supported = ", ".join(sorted(INTERACTION_TYPES))
             raise ValueError(f"Invalid type '{resolved_type}'. Supported types: {supported}")
 
+        if continuation_mode not in CONTINUATION_MODES:
+            supported_modes = ", ".join(sorted(CONTINUATION_MODES))
+            raise ValueError(f"Invalid continuation_mode '{continuation_mode}'. Supported modes: {supported_modes}")
+
         if not resolved_callback_url:
             raise ValueError("callback_url is required for webhook delivery.")
 
@@ -111,24 +119,45 @@ def centcom_approval(
             NODE_NAME_KEY: node_name,
         }
 
-        # Create the CENTCOM request (idempotent — safe to call twice)
+        # Create the CENTCOM request (idempotent - safe to call twice)
         client = CentcomClient(api_key=key, base_url=base_url)
         try:
-            req = client.create_request(
-                type=resolved_type,
-                context=resolved_context,
-                question=resolved_question,
-                callback_url=resolved_callback_url,
-                priority=priority,
-                required_role=required_role,
-                metadata=full_metadata,
-                idempotency_key=idempotency_key,
+            protocol_request_type = "input" if resolved_type == "free_text" else ("decision" if resolved_type == "yes_no" else "review")
+            protocol_priority = "urgent" if priority == "urgent" else "normal"
+            req = client.create_protocol_request(
+                {
+                    "title": resolved_question,
+                    "description": resolved_context,
+                    "request_type": protocol_request_type,
+                    "source": {
+                        "integration": "langgraph",
+                        "framework": "langgraph",
+                        "workflow_id": node_name,
+                        "run_id": thread_id,
+                        "session_id": thread_id,
+                    },
+                    "routing": {
+                        "department": department,
+                        "required_role": required_role,
+                        "priority": protocol_priority,
+                    },
+                    "context": {
+                        "tool_name": node_name,
+                        "summary": resolved_context,
+                    },
+                    "continuation": {
+                        "mode": continuation_mode,
+                        "callback_url": resolved_callback_url,
+                    },
+                    "external_request_id": idempotency_key,
+                    "metadata": full_metadata,
+                }
             )
             request_id = req["id"]
         finally:
             client.close()
 
-        # Pause the graph — checkpointer persists state.
+        # Pause the graph - checkpointer persists state.
         # On resume, interrupt() returns the value passed via Command(resume=...).
         response = interrupt({
             "centcom_request_id": request_id,
@@ -139,8 +168,20 @@ def centcom_approval(
         # response is the webhook payload passed by the resume caller
         return {
             "centcom_request_id": request_id,
-            "centcom_response": response.get("response") if isinstance(response, dict) else response,
-            "centcom_status": response.get("state", "answered") if isinstance(response, dict) else "answered",
+            "centcom_response": (
+                response.get("structured_response")
+                if isinstance(response, dict) and response.get("structured_response") is not None
+                else response.get("response")
+                if isinstance(response, dict)
+                else response
+            ),
+            "centcom_status": (
+                response.get("status")
+                if isinstance(response, dict) and response.get("status")
+                else response.get("state", "answered")
+                if isinstance(response, dict)
+                else "answered"
+            ),
         }
 
     return _node

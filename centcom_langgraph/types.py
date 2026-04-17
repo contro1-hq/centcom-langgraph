@@ -5,6 +5,9 @@ from __future__ import annotations
 # Interaction types supported by CENTCOM
 INTERACTION_TYPES = {"yes_no", "free_text", "approval"}
 
+# Protocol continuation modes
+CONTINUATION_MODES = {"decision", "instruction"}
+
 # Request states that indicate the lifecycle is complete
 TERMINAL_STATES = {
     "answered", "callback_pending", "callback_delivered",

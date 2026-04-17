@@ -1,4 +1,4 @@
-"""FastAPI webhook receiver — bridges CENTCOM webhooks to LangGraph resume.
+"""FastAPI webhook receiver - bridges CENTCOM webhooks to LangGraph resume.
 
 Run this alongside your LangGraph graph to automatically resume
 paused threads when operators respond.

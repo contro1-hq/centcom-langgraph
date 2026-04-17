@@ -2,6 +2,8 @@
 
 Human approval nodes for [LangGraph](https://github.com/langchain-ai/langgraph) workflows, powered by [CENTCOM](https://contro1.com).
 
+This connector normalizes requests through **Contro1 Integration Protocol v1** while keeping the existing API behavior backward-compatible.
+
 Drop a CENTCOM approval node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators respond in the CENTCOM dashboard. The operator response is delivered back to your app via webhook and used to resume the graph - no thread blocked, fully persistent.
 
 ## Install
@@ -11,6 +13,14 @@ pip install centcom-langgraph
 
 # With webhook handler (FastAPI)
 pip install centcom-langgraph[webhook]
+```
+
+## Environment variables
+
+```bash
+CENTCOM_API_KEY=cc_live_your_key
+CENTCOM_BASE_URL=https://api.contro1.com/api/centcom/v1
+CENTCOM_WEBHOOK_SECRET=whsec_your_signing_secret
 ```
 
 ## Quick Start
@@ -61,6 +71,7 @@ result = app.invoke(
 ### `centcom_approval(**kwargs)`
 
 Factory returning a LangGraph node. Parameters accept static values or `(state) -> value` callables.
+Supports `continuation_mode="decision" | "instruction"` and protocol routing metadata propagation.
 
 ### `centcom_tool(**kwargs)`
 

@@ -1,4 +1,4 @@
-"""CENTCOM LangGraph Connector — Human approval nodes for LangGraph workflows."""
+"""CENTCOM LangGraph Connector - Human approval nodes for LangGraph workflows."""
 
 from .node import centcom_approval
 from .state import CentcomState

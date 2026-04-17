@@ -8,6 +8,24 @@ user_invocable: true
 
 You are helping a developer integrate CENTCOM (Human-in-the-Loop approval API) into their existing LangGraph codebase. Follow this guide to analyze their code and add CENTCOM approval nodes.
 
+## Installation
+
+```bash
+pip install centcom-langgraph
+# With webhook handler (FastAPI/Starlette)
+pip install centcom-langgraph[webhook]
+```
+
+## Required configuration
+
+```bash
+CENTCOM_API_KEY=cc_live_your_key
+CENTCOM_BASE_URL=https://api.contro1.com/api/centcom/v1
+CENTCOM_WEBHOOK_SECRET=whsec_your_signing_secret
+```
+
+The SDK reads `CENTCOM_API_KEY` and `CENTCOM_BASE_URL` automatically. Set all three before running.
+
 ## Step 1: Understand Their Graph
 
 Read the user's LangGraph graph code. Identify:
@@ -146,7 +164,7 @@ app = graph.compile(checkpointer=PostgresSaver(conn_string))
 
 - **API Key**: Set `CENTCOM_API_KEY` env var or pass `api_key=` parameter
 - **Thread ID**: Auto-injected into CENTCOM metadata for webhook correlation
-- **Idempotency**: Safe to retry — duplicate requests are prevented automatically
+- **Idempotency**: Safe to retry - duplicate requests are prevented automatically
 - **Webhook-only flow**: Operator answers in dashboard, response always arrives via webhook
 - **Conditional approval**: Use `question=lambda s: ...` for dynamic questions based on state
 - **Agent tool**: For agent graphs where LLM decides when to ask, use `centcom_tool()` instead
@@ -167,7 +185,7 @@ graph.add_conditional_edges("human_approval", route_after_approval)
 ```
 
 ### Multiple Approval Points
-Use different node names — each gets its own idempotency key:
+Use different node names - each gets its own idempotency key:
 ```python
 graph.add_node("manager_approval", centcom_approval(..., required_role="manager"))
 graph.add_node("finance_approval", centcom_approval(..., required_role="finance"))

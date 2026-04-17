@@ -1,4 +1,4 @@
-"""Production example — interrupt mode with webhook resume.
+"""Production example - interrupt mode with webhook resume.
 
 The graph pauses at the approval node and resumes when the
 CENTCOM webhook fires to your endpoint.
@@ -30,7 +30,7 @@ def prepare_refund(state: dict) -> dict:
 def execute_refund(state: dict) -> dict:
     response = state.get("centcom_response", {})
     if isinstance(response, dict) and response.get("approved"):
-        print(f"Refund APPROVED — processing ${state['refund_amount']}")
+        print(f"Refund APPROVED - processing ${state['refund_amount']}")
         return {"refund_processed": True}
     else:
         comment = response.get("comment", "") if isinstance(response, dict) else ""
@@ -64,7 +64,7 @@ app = graph.compile(checkpointer=MemorySaver())
 if __name__ == "__main__":
     thread_id = "refund-cust-99"
 
-    # Step 1: Start the graph — it will pause at the approval node
+    # Step 1: Start the graph - it will pause at the approval node
     print("Starting graph...")
     result = app.invoke(
         {
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     webhook_payload = {
         "request_id": result.get("centcom_request_id"),
         "state": "answered",
-        "response": {"approved": True, "comment": "Approved — valid defect claim"},
+        "response": {"approved": True, "comment": "Approved - valid defect claim"},
         "responded_by": "Jane Manager",
         "metadata": {"customer_id": "CUST-99", "langgraph_thread_id": thread_id},
     }

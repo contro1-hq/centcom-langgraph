@@ -8,7 +8,7 @@ from typing_extensions import TypedDict
 
 
 class CentcomState(TypedDict, total=False):
-    """Mixin for LangGraph state — add CENTCOM approval fields to your graph state.
+    """Mixin for LangGraph state - add CENTCOM approval fields to your graph state.
 
     Usage:
         class MyState(CentcomState):
