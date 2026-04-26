@@ -15,7 +15,7 @@ from .types import CONTINUATION_MODES, NODE_NAME_KEY
 def centcom_tool(
     *,
     api_key: Optional[str] = None,
-    base_url: str = "https://contro1.com/api/centcom/v1",
+    base_url: str = "https://api.contro1.com/api/centcom/v1",
     callback_url: str,
     continuation_mode: str = "decision",
 ):

@@ -34,7 +34,7 @@ def centcom_approval(
     context: Resolvable,
     callback_url: Resolvable,
     api_key: Optional[str] = None,
-    base_url: str = "https://contro1.com/api/centcom/v1",
+    base_url: str = "https://api.contro1.com/api/centcom/v1",
     priority: str = "normal",
     required_role: Optional[str] = None,
     continuation_mode: str = "decision",
