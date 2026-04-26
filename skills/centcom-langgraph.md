@@ -86,8 +86,21 @@ graph.add_node("approve_deploy", centcom_approval(
     context="Release includes billing migration.",
     callback_url="https://my-app.com/centcom-webhook",
     required_role="admin",
+    approval_policy={
+        "mode": "threshold",
+        "required_approvals": 2,
+        "required_roles": ["manager", "admin"],
+        "separation_of_duties": True,
+        "fail_closed_on_timeout": True,
+    },
 ))
 ```
+
+Multi-approval behavior:
+- Use `approval_policy.required_approvals = 2` for production deploys, vendor payments, bulk deletion, and privilege escalation.
+- The first approval records an audit event but does not resume LangGraph.
+- The webhook fires only when quorum is met, a reviewer rejects, or the request times out.
+- Treat timeout before quorum as fail-closed for high-risk actions.
 
 Examples:
 ```python
