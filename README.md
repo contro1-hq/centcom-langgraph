@@ -1,30 +1,3 @@
-# Contro1 for LangGraph
-
-Add Contro1 human approval nodes, audit-only records, and threaded timelines to LangGraph workflows.
-
-## Threading
-
-The connector maps LangGraph `config.configurable.thread_id` to a valid Contro1 `thread_id`. Every approval node in the same LangGraph thread can appear in one Contro1 timeline.
-
-```python
-graph.invoke(input, config={"configurable": {"thread_id": "customer-8842-refund"}})
-```
-
-## Logging autonomous actions
-
-Use `client.log_action` when a graph node completes an action that does not need human review:
-
-```python
-client.log_action(
-    action="langgraph.email_sent",
-    summary="Sent policy-approved customer follow-up email",
-    source={"integration": "langgraph", "workflow_id": "refund_flow", "run_id": langgraph_thread_id},
-    outcome="success",
-    thread_id=contro1_thread_id,
-)
-```
-
-Use `in_reply_to` to attach a log record to a prior approval request in the same thread.
 # centcom-langgraph
 
 Human approval nodes for [LangGraph](https://github.com/langchain-ai/langgraph) workflows, powered by [CENTCOM](https://contro1.com).
@@ -115,3 +88,27 @@ TypedDict mixin adding `centcom_request_id`, `centcom_response`, `centcom_status
 ## Docs
 
 Full documentation at [contro1.com/docs](https://contro1.com/docs).
+
+## Threading
+
+The connector maps LangGraph `config.configurable.thread_id` to a valid Contro1 `thread_id`. Every approval node in the same LangGraph thread can appear in one Contro1 timeline.
+
+```python
+graph.invoke(input, config={"configurable": {"thread_id": "customer-8842-refund"}})
+```
+
+## Logging autonomous actions
+
+Use `client.log_action` when a graph node completes an action that does not need human review:
+
+```python
+client.log_action(
+    action="langgraph.email_sent",
+    summary="Sent policy-approved customer follow-up email",
+    source={"integration": "langgraph", "workflow_id": "refund_flow", "run_id": langgraph_thread_id},
+    outcome="success",
+    thread_id=contro1_thread_id,
+)
+```
+
+Use `in_reply_to` to attach a log record to a prior approval request in the same thread.
