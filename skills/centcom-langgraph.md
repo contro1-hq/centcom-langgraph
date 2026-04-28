@@ -1,3 +1,26 @@
+# Contro1 LangGraph Skill
+
+Use this when integrating Contro1 into LangGraph.
+
+## Rules
+
+- Use `centcom_approval()` for graph nodes that must pause for an operator.
+- Use `centcom_tool()` when the model decides whether to request approval.
+- Use `CentcomClient.log_action()` for allowed autonomous actions that should be auditable.
+- Treat LangGraph `config.configurable.thread_id` as the source for Contro1 threading; the connector hashes it into `thr_*` format when needed.
+- Use `in_reply_to={"type": "request", "id": request_id}` when logging what happened after an operator answer.
+
+## Threaded reply
+
+```python
+client.log_action(
+    action="langgraph.action_completed",
+    summary="Completed the action approved by the operator",
+    source={"integration": "langgraph", "workflow_id": node_name, "run_id": langgraph_thread_id},
+    thread_id=contro1_thread_id,
+    in_reply_to={"type": "request", "id": request_id},
+)
+```
 ---
 name: centcom-langgraph
 description: Guide for integrating CENTCOM human approval into existing LangGraph workflows
@@ -203,3 +226,12 @@ Use different node names - each gets its own idempotency key:
 graph.add_node("manager_approval", centcom_approval(..., required_role="manager"))
 graph.add_node("finance_approval", centcom_approval(..., required_role="finance"))
 ```
+
+## Full reference links
+
+- Repo: https://github.com/contro1-hq/centcom-langgraph
+- Approval node implementation: https://github.com/contro1-hq/centcom-langgraph/blob/main/centcom_langgraph/node.py
+- Tool implementation: https://github.com/contro1-hq/centcom-langgraph/blob/main/centcom_langgraph/tool.py
+- Webhook handler docs: https://github.com/contro1-hq/centcom-langgraph
+- Skill file source: https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md
+- Protocol docs: https://contro1.com/docs/audit-records-and-threads

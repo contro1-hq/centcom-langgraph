@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 from typing import Callable, Optional, Union
 
 from centcom import CentcomClient
@@ -25,6 +26,12 @@ def _resolve_dict(value: ResolvableDict, state: dict) -> Optional[dict]:
     if value is None:
         return None
     return value(state) if callable(value) else value
+
+
+def _to_contro1_thread_id(thread_id: str) -> str:
+    if thread_id.startswith("thr_") and len(thread_id) <= 68:
+        return thread_id
+    return f"thr_lg_{hashlib.sha256(thread_id.encode('utf-8')).hexdigest()[:32]}"
 
 
 def centcom_approval(
@@ -83,6 +90,7 @@ def centcom_approval(
         # Extract thread_id and node name from LangGraph config for correlation
         configurable = (config or {}).get("configurable", {})
         thread_id = configurable.get("thread_id", "")
+        contro1_thread_id = _to_contro1_thread_id(str(thread_id)) if thread_id else ""
         node_name = configurable.get("langgraph_node", "centcom_approval")
 
         if not thread_id:
@@ -116,6 +124,7 @@ def centcom_approval(
         full_metadata = {
             **user_meta,
             THREAD_ID_KEY: thread_id,
+            "contro1_thread_id": contro1_thread_id,
             NODE_NAME_KEY: node_name,
         }
 
@@ -150,6 +159,7 @@ def centcom_approval(
                         "callback_url": resolved_callback_url,
                     },
                     "external_request_id": idempotency_key,
+                    "thread_id": contro1_thread_id,
                     "metadata": full_metadata,
                 }
             )
