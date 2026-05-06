@@ -7,20 +7,24 @@ Use this when integrating Contro1 into LangGraph.
 - Use `centcom_approval()` for graph nodes that must pause for an operator.
 - Use `centcom_tool()` when the model decides whether to request approval.
 - Use `CentcomClient.log_action()` for allowed autonomous actions that should be auditable.
-- Treat LangGraph `config.configurable.thread_id` as the source for Contro1 threading; the connector hashes it into `thr_*` format when needed.
+- LangGraph's `config.configurable.thread_id` is LangGraph's own state key. The connector maps it to Contro1's `correlation_id` so all approval nodes in the same LangGraph thread appear in one Contro1 case timeline.
 - Use `in_reply_to={"type": "request", "id": request_id}` when logging what happened after an operator answer.
+- `in_reply_to` must point to an item in the same organization; when both `correlation_id` and `in_reply_to` are sent, they must belong to the same case.
 
-## Threaded reply
+## Case continuity
+
+After a human approves and execution resumes, log the follow-up action in the same case so the dashboard shows the full story:
 
 ```python
 client.log_action(
     action="langgraph.action_completed",
     summary="Completed the action approved by the operator",
     source={"integration": "langgraph", "workflow_id": node_name, "run_id": langgraph_thread_id},
-    thread_id=contro1_thread_id,
+    correlation_id=case_id,
     in_reply_to={"type": "request", "id": request_id},
 )
 ```
+
 ---
 name: centcom-langgraph
 description: Guide for integrating CENTCOM human approval into existing LangGraph workflows
@@ -77,7 +81,34 @@ class MyState(CentcomState):
 
 This adds: `centcom_request_id`, `centcom_response`, `centcom_status` to the state.
 
-## Step 3: Add the Approval Node
+## Step 3: Check Routing Before a High-Risk Node (Control Map)
+
+For nodes that use `approval_policy` with required roles or two-person approval, preview routing before the graph runs. This confirms that the required reviewers are mapped and available.
+
+```python
+from centcom import CentcomClient
+
+client = CentcomClient()
+
+preview = client.post("/requests/control-map", {
+    "approval_requirements": {"required_roles": ["finance"], "required_approvals": 2},
+    "approval_policy": {
+        "mode": "threshold",
+        "required_approvals": 2,
+        "separation_of_duties": True,
+        "fail_closed_on_timeout": True,
+    },
+})
+
+if not preview["satisfiable"]:
+    # preview["warnings"] lists what is missing
+    # preview["suggested_action"] says what an admin should do
+    raise RuntimeError(f"Routing not ready: {preview['warnings']}")
+```
+
+Cache the result for 5–15 minutes. Do not call Control Map on every graph invocation.
+
+## Step 4: Add the Approval Node
 
 Insert `centcom_approval()` between the node that needs approval and the node that acts on it:
 
@@ -101,7 +132,7 @@ Role routing semantics:
 - Non-matching role claim attempts are rejected by the API with `403 forbidden`.
 - Use only existing org roles (built-in or custom org-defined roles); do not invent new role names in examples.
 
-Mini example:
+Mini example — two-person approval for a production deploy:
 ```python
 graph.add_node("approve_deploy", centcom_approval(
     type="approval",
@@ -133,7 +164,7 @@ graph.add_node("admin_approval", centcom_approval(..., required_role="admin"))
 graph.add_node("open_queue_approval", centcom_approval(...))  # no required_role
 ```
 
-## Step 4: Wire the Edges
+## Step 5: Wire the Edges
 
 ```python
 # Before: graph.add_edge("prepare", "execute")
@@ -142,7 +173,7 @@ graph.add_edge("prepare", "human_approval")
 graph.add_edge("human_approval", "execute")
 ```
 
-## Step 5: Handle the Response Downstream
+## Step 6: Handle the Response Downstream
 
 In the node after approval, read from state:
 
@@ -160,7 +191,7 @@ def execute_action(state: dict) -> dict:
         # handle failure
 ```
 
-## Step 6: Add Webhook Handler (Production)
+## Step 7: Add Webhook Handler (Production)
 
 CENTCOM responses from the dashboard are delivered to the customer's webhook endpoint.
 They must expose a webhook endpoint to resume the paused LangGraph thread:
@@ -182,7 +213,7 @@ async def webhook(request: Request):
     return result
 ```
 
-## Step 7: Ensure Checkpointer
+## Step 8: Ensure Checkpointer
 
 Webhook resume flow requires a checkpointer:
 
@@ -199,8 +230,8 @@ app = graph.compile(checkpointer=PostgresSaver(conn_string))
 ## Key Points to Mention
 
 - **API Key**: Set `CENTCOM_API_KEY` env var or pass `api_key=` parameter
-- **Thread ID**: Auto-injected into CENTCOM metadata for webhook correlation
-- **Idempotency**: Safe to retry - duplicate requests are prevented automatically
+- **Case ID**: LangGraph's `config.configurable.thread_id` is mapped to Contro1 `correlation_id` automatically; all nodes in the same LangGraph run share one case timeline in the dashboard
+- **Idempotency**: Safe to retry — duplicate requests are prevented automatically
 - **Webhook-only flow**: Operator answers in dashboard, response always arrives via webhook
 - **Conditional approval**: Use `question=lambda s: ...` for dynamic questions based on state
 - **Agent tool**: For agent graphs where LLM decides when to ask, use `centcom_tool()` instead
@@ -227,6 +258,46 @@ graph.add_node("manager_approval", centcom_approval(..., required_role="manager"
 graph.add_node("finance_approval", centcom_approval(..., required_role="finance"))
 ```
 
+## Production pattern: Agent Plugin
+
+For teams running multiple graphs with overlapping governance requirements, wrap the Contro1 calls behind a thin plugin. This reduces prompt token usage and makes policy decisions consistent across nodes.
+
+```python
+import asyncio
+from datetime import datetime, timedelta
+from centcom import CentcomClient
+
+class Contro1Plugin:
+    """Thin adapter for LangGraph nodes. Cache preview_policy to avoid calling
+    the Control Map endpoint on every graph invocation."""
+
+    def __init__(self, client: CentcomClient, cache_ttl_minutes: int = 10):
+        self._client = client
+        self._cache: dict = {}
+        self._cache_ttl = timedelta(minutes=cache_ttl_minutes)
+
+    async def preview_policy(self, approval_requirements: dict, approval_policy: dict) -> dict:
+        key = str(sorted(approval_requirements.items()))
+        cached = self._cache.get(key)
+        if cached and datetime.utcnow() < cached["expires"]:
+            return cached["data"]
+        result = await self._client.post_async("/requests/control-map", {
+            "approval_requirements": approval_requirements,
+            "approval_policy": approval_policy,
+        })
+        self._cache[key] = {"data": result, "expires": datetime.utcnow() + self._cache_ttl}
+        return result
+
+    async def request_human_review(self, payload: dict) -> dict:
+        return await self._client.create_protocol_request_async(payload)
+
+    async def log_audit_action(self, payload: dict) -> dict:
+        return await self._client.log_action_async(payload)
+
+    async def resume_from_decision(self, case_id: str) -> dict:
+        return await self._client.get_async(f"/cases/{case_id}")
+```
+
 ## Full reference links
 
 - Repo: https://github.com/contro1-hq/centcom-langgraph
@@ -234,4 +305,10 @@ graph.add_node("finance_approval", centcom_approval(..., required_role="finance"
 - Tool implementation: https://github.com/contro1-hq/centcom-langgraph/blob/main/centcom_langgraph/tool.py
 - Webhook handler docs: https://github.com/contro1-hq/centcom-langgraph
 - Skill file source: https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md
-- Protocol docs: https://contro1.com/docs/audit-records-and-threads
+- Protocol docs: https://contro1.com/docs/audit-records-and-cases
+
+## Governance readiness
+
+For teams operating under EU or US AI governance requirements, see:
+- https://contro1.com/guides/eu-ai-act-readiness
+- https://contro1.com/guides/us-ai-governance-readiness

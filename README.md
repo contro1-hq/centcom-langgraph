@@ -2,9 +2,9 @@
 
 Human approval nodes for [LangGraph](https://github.com/langchain-ai/langgraph) workflows, powered by [CENTCOM](https://contro1.com).
 
-This connector normalizes requests through **Contro1 Integration Protocol v1** while keeping the existing API behavior backward-compatible.
+Drop a CENTCOM approval node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators respond in the CENTCOM dashboard. The operator response is delivered back to your app via webhook and used to resume the graph — no thread blocked, fully persistent.
 
-Drop a CENTCOM approval node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators respond in the CENTCOM dashboard. The operator response is delivered back to your app via webhook and used to resume the graph - no thread blocked, fully persistent.
+This connector normalizes requests through **Contro1 Integration Protocol v1**.
 
 ## Install
 
@@ -48,7 +48,7 @@ graph.add_edge("approve", END)
 app = graph.compile(checkpointer=MemorySaver())
 result = app.invoke(
     {"order_id": "ORD-42", "approved": False},
-    config={"configurable": {"thread_id": "order-42"}},
+    config={"configurable": {"thread_id": "order-42"}},  # LangGraph's own state key
 )
 ```
 
@@ -60,11 +60,48 @@ result = app.invoke(
 4. CENTCOM sends the signed response payload to your webhook endpoint.
 5. Your webhook handler verifies the signature and resumes LangGraph with `Command(resume=payload)`.
 
-## Official Resources
+## Case continuity
 
-- SDK repository: [github.com/contro1-hq/centcom-langgraph](https://github.com/contro1-hq/centcom-langgraph)
-- Core Python SDK (`centcom`): [github.com/contro1-hq/centcom](https://github.com/contro1-hq/centcom)
-- Official skill file: [skills/centcom-langgraph.md](https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md)
+LangGraph's `config.configurable.thread_id` is LangGraph's own state key. The connector maps it to Contro1's `correlation_id` automatically. Every approval node and audit log entry in the same LangGraph run shares one case timeline in the CENTCOM dashboard.
+
+Use `client.log_action` to record autonomous actions in the same case:
+
+```python
+client.log_action(
+    action="langgraph.email_sent",
+    summary="Sent policy-approved customer follow-up email",
+    source={"integration": "langgraph", "workflow_id": "refund_flow", "run_id": langgraph_thread_id},
+    outcome="success",
+    correlation_id=case_id,          # provided by the connector from LangGraph thread
+    in_reply_to={"type": "request", "id": request_id},  # links back to the approval
+)
+```
+
+## Control Map preview
+
+Before adding a high-risk approval node, verify that routing is satisfiable — the required reviewers are mapped and available. Cache this for 5–15 minutes; do not call it on every graph invocation.
+
+```python
+from centcom import CentcomClient
+
+client = CentcomClient()
+preview = client.post("/requests/control-map", {
+    "approval_requirements": {"required_roles": ["finance"], "required_approvals": 2},
+    "approval_policy": {
+        "mode": "threshold",
+        "required_approvals": 2,
+        "separation_of_duties": True,
+        "fail_closed_on_timeout": True,
+    },
+})
+
+if not preview["satisfiable"]:
+    # preview["warnings"] lists what is missing
+    # preview["suggested_action"] describes the admin fix
+    raise RuntimeError(f"Routing not ready: {preview['warnings']}")
+```
+
+Response fields: `satisfiable` (bool), `status` (`ready` | `needs_mapping` | `needs_capacity`), `warnings`, `suggested_action`.
 
 ## API
 
@@ -85,30 +122,53 @@ Async handler that verifies CENTCOM webhooks and resumes LangGraph threads.
 
 TypedDict mixin adding `centcom_request_id`, `centcom_response`, `centcom_status` to your graph state.
 
-## Docs
+## Production pattern: Agent Plugin
 
-Full documentation at [contro1.com/docs](https://contro1.com/docs).
-
-## Threading
-
-The connector maps LangGraph `config.configurable.thread_id` to a valid Contro1 `thread_id`. Every approval node in the same LangGraph thread can appear in one Contro1 timeline.
+For teams running multiple graphs with overlapping governance requirements, a thin plugin reduces token overhead and keeps policy consistent:
 
 ```python
-graph.invoke(input, config={"configurable": {"thread_id": "customer-8842-refund"}})
+from datetime import datetime, timedelta
+from centcom import CentcomClient
+
+class Contro1Plugin:
+    """Wraps Contro1 calls. preview_policy is TTL-cached."""
+
+    def __init__(self, client: CentcomClient, cache_ttl_minutes: int = 10):
+        self._client = client
+        self._cache: dict = {}
+        self._ttl = timedelta(minutes=cache_ttl_minutes)
+
+    def preview_policy(self, approval_requirements: dict, approval_policy: dict) -> dict:
+        key = str(sorted(approval_requirements.items()))
+        cached = self._cache.get(key)
+        if cached and datetime.utcnow() < cached["expires"]:
+            return cached["data"]
+        result = self._client.post("/requests/control-map", {
+            "approval_requirements": approval_requirements,
+            "approval_policy": approval_policy,
+        })
+        self._cache[key] = {"data": result, "expires": datetime.utcnow() + self._ttl}
+        return result
+
+    def request_human_review(self, payload: dict) -> dict:
+        return self._client.create_protocol_request(payload)
+
+    def log_audit_action(self, payload: dict) -> dict:
+        return self._client.log_action(**payload)
+
+    def resume_from_decision(self, case_id: str) -> dict:
+        return self._client.get(f"/cases/{case_id}")
 ```
 
-## Logging autonomous actions
+## Official Resources
 
-Use `client.log_action` when a graph node completes an action that does not need human review:
+- SDK repository: [github.com/contro1-hq/centcom-langgraph](https://github.com/contro1-hq/centcom-langgraph)
+- Core Python SDK (`centcom`): [github.com/contro1-hq/centcom](https://github.com/contro1-hq/centcom)
+- Official skill file: [skills/centcom-langgraph.md](https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md)
+- Full docs: [contro1.com/docs](https://contro1.com/docs)
 
-```python
-client.log_action(
-    action="langgraph.email_sent",
-    summary="Sent policy-approved customer follow-up email",
-    source={"integration": "langgraph", "workflow_id": "refund_flow", "run_id": langgraph_thread_id},
-    outcome="success",
-    thread_id=contro1_thread_id,
-)
-```
+## Governance readiness
 
-Use `in_reply_to` to attach a log record to a prior approval request in the same thread.
+For teams operating AI in regulated environments:
+- [EU AI Act readiness guide](https://contro1.com/guides/eu-ai-act-readiness)
+- [US AI Governance readiness guide](https://contro1.com/guides/us-ai-governance-readiness)
