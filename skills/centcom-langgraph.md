@@ -132,7 +132,7 @@ Role routing semantics:
 - Non-matching role claim attempts are rejected by the API with `403 forbidden`.
 - Use only existing org roles (built-in or custom org-defined roles); do not invent new role names in examples.
 
-Mini example — two-person approval for a production deploy:
+Mini example - two-person approval for a production deploy:
 ```python
 graph.add_node("approve_deploy", centcom_approval(
     type="approval",
@@ -231,7 +231,7 @@ app = graph.compile(checkpointer=PostgresSaver(conn_string))
 
 - **API Key**: Set `CENTCOM_API_KEY` env var or pass `api_key=` parameter
 - **Case ID**: LangGraph's `config.configurable.thread_id` is mapped to Contro1 `correlation_id` automatically; all nodes in the same LangGraph run share one case timeline in the dashboard
-- **Idempotency**: Safe to retry — duplicate requests are prevented automatically
+- **Idempotency**: Safe to retry - duplicate requests are prevented automatically
 - **Webhook-only flow**: Operator answers in dashboard, response always arrives via webhook
 - **Conditional approval**: Use `question=lambda s: ...` for dynamic questions based on state
 - **Agent tool**: For agent graphs where LLM decides when to ask, use `centcom_tool()` instead

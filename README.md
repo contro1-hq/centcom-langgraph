@@ -2,7 +2,7 @@
 
 Human approval nodes for [LangGraph](https://github.com/langchain-ai/langgraph) workflows, powered by [CENTCOM](https://contro1.com).
 
-Drop a CENTCOM approval node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators respond in the CENTCOM dashboard. The operator response is delivered back to your app via webhook and used to resume the graph — no thread blocked, fully persistent.
+Drop a CENTCOM approval node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators respond in the CENTCOM dashboard. The operator response is delivered back to your app via webhook and used to resume the graph - no thread blocked, fully persistent.
 
 This connector normalizes requests through **Contro1 Integration Protocol v1**.
 
@@ -79,7 +79,7 @@ client.log_action(
 
 ## Control Map preview
 
-Before adding a high-risk approval node, verify that routing is satisfiable — the required reviewers are mapped and available. Cache this for 5–15 minutes; do not call it on every graph invocation.
+Before adding a high-risk approval node, verify that routing is satisfiable - the required reviewers are mapped and available. Cache this for 5–15 minutes; do not call it on every graph invocation.
 
 ```python
 from centcom import CentcomClient
