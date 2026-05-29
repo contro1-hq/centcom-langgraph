@@ -305,6 +305,7 @@ class Contro1Plugin:
 - Tool implementation: https://github.com/contro1-hq/centcom-langgraph/blob/main/centcom_langgraph/tool.py
 - Webhook handler docs: https://github.com/contro1-hq/centcom-langgraph
 - Skill file source: https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md
+- Microsoft AGT companion skill: https://github.com/contro1-hq/contro1-microsoft-agent-governance-toolkit-integration/blob/main/skills/contro1-microsoft-agent-governance-toolkit-integration.md
 - Protocol docs: https://contro1.com/docs/audit-records-and-cases
 
 ## Governance readiness

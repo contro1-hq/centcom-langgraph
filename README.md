@@ -173,6 +173,7 @@ class Contro1Plugin:
 - SDK repository: [github.com/contro1-hq/centcom-langgraph](https://github.com/contro1-hq/centcom-langgraph)
 - Core Python SDK (`centcom`): [github.com/contro1-hq/centcom](https://github.com/contro1-hq/centcom)
 - Official skill file: [skills/centcom-langgraph.md](https://github.com/contro1-hq/centcom-langgraph/blob/main/skills/centcom-langgraph.md)
+- Microsoft AGT companion: [github.com/contro1-hq/contro1-microsoft-agent-governance-toolkit-integration](https://github.com/contro1-hq/contro1-microsoft-agent-governance-toolkit-integration)
 - Full docs: [contro1.com/docs](https://contro1.com/docs)
 
 ## Governance readiness
