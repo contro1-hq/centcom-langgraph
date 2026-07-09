@@ -1,6 +1,6 @@
 [project]
 name = "centcom-langgraph"
-version = "0.1.0"
+version = "0.2.0"
 description = "CENTCOM Human Approval connector for LangGraph - pause AI workflows for human decisions"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "centcom>=1.0.0",
+    "centcom>=1.1.0",
     "langgraph>=0.2.0",
 ]
 

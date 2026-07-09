@@ -87,7 +87,7 @@ client.log_action(
 
 ## Control Map preview
 
-Before adding a high-risk approval node, verify that routing is satisfiable - the required reviewers are mapped and available. Cache this for 5–15 minutes; do not call it on every graph invocation.
+For high-risk approval nodes, Control Map can preview whether routing is satisfiable - for example, whether required reviewers are mapped and available. Cache this for 5-15 minutes; do not call it on every graph invocation.
 
 ```python
 from centcom import CentcomClient
@@ -104,12 +104,13 @@ preview = client.post("/requests/control-map", {
 })
 
 if not preview["satisfiable"]:
-    # preview["warnings"] lists what is missing
-    # preview["suggested_action"] describes the admin fix
-    raise RuntimeError(f"Routing not ready: {preview['warnings']}")
+    # preview["warnings"] lists the setup gap.
+    print("Routing setup needed:", preview["warnings"])
 ```
 
 Response fields: `satisfiable` (bool), `status` (`ready` | `needs_mapping` | `needs_capacity`), `warnings`, `suggested_action`.
+
+The approval node remains the gate: continue only after the final signed decision.
 
 ## API
 

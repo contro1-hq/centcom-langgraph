@@ -46,6 +46,12 @@ def centcom_approval(
     required_role: Optional[str] = None,
     continuation_mode: str = "decision",
     department: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    policy_trigger: Optional[Resolvable] = None,
+    policy_context: ResolvableDict = None,
+    approval_comment_required: Optional[bool] = None,
+    approval_requirements: ResolvableDict = None,
+    decision_context: ResolvableDict = None,
     metadata: ResolvableDict = None,
 ) -> Callable:
     """Factory that returns a LangGraph-compatible node function for CENTCOM approval.
@@ -65,6 +71,12 @@ def centcom_approval(
         required_role: Role required to answer (e.g. "manager").
         continuation_mode: "decision" or "instruction" response mode.
         department: Optional department id for routing metadata.
+        risk_level: Optional customer-assessed risk level: low, medium, high, or critical.
+        policy_trigger: Optional reason review is required. Can be callable.
+        policy_context: Optional policy/risk evidence envelope. Can be callable.
+        approval_comment_required: Require reviewer justification.
+        approval_requirements: Optional expected approval evidence. Can be callable.
+        decision_context: Optional full decision evidence envelope. Can be callable.
         metadata: Extra data returned in the callback. Can be callable.
                   thread_id is auto-injected for webhook correlation.
     Returns:
@@ -103,6 +115,10 @@ def centcom_approval(
         resolved_context = _resolve(context, state)
         resolved_question = _resolve(question, state)
         resolved_callback_url = _resolve(callback_url, state)
+        resolved_policy_trigger = _resolve(policy_trigger, state) if policy_trigger else None
+        resolved_policy_context = _resolve_dict(policy_context, state)
+        resolved_approval_requirements = _resolve_dict(approval_requirements, state)
+        resolved_decision_context = _resolve_dict(decision_context, state)
 
         if resolved_type not in INTERACTION_TYPES:
             supported = ", ".join(sorted(INTERACTION_TYPES))
@@ -160,6 +176,12 @@ def centcom_approval(
                     },
                     "external_request_id": idempotency_key,
                     "thread_id": contro1_thread_id,
+                    "risk_level": risk_level,
+                    "policy_trigger": resolved_policy_trigger,
+                    "policy_context": resolved_policy_context,
+                    "approval_comment_required": approval_comment_required,
+                    "approval_requirements": resolved_approval_requirements,
+                    "decision_context": resolved_decision_context,
                     "metadata": full_metadata,
                 }
             )

@@ -101,12 +101,11 @@ preview = client.post("/requests/control-map", {
 })
 
 if not preview["satisfiable"]:
-    # preview["warnings"] lists what is missing
-    # preview["suggested_action"] says what an admin should do
-    raise RuntimeError(f"Routing not ready: {preview['warnings']}")
+    # preview["warnings"] lists the setup gap.
+    print("Routing setup needed:", preview["warnings"])
 ```
 
-Cache the result for 5–15 minutes. Do not call Control Map on every graph invocation.
+Cache the result for 5-15 minutes. Do not call Control Map on every graph invocation. The approval node remains the execution gate.
 
 ## Step 4: Add the Approval Node
 

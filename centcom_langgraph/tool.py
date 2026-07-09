@@ -25,6 +25,10 @@ def centcom_tool(
     base_url: str = "https://api.contro1.com/api/centcom/v1",
     callback_url: str,
     continuation_mode: str = "decision",
+    department: Optional[str] = None,
+    policy_context: Optional[dict] = None,
+    approval_requirements: Optional[dict] = None,
+    decision_context: Optional[dict] = None,
 ):
     """Create a LangChain tool for CENTCOM human approval.
 
@@ -36,6 +40,10 @@ def centcom_tool(
         base_url: CENTCOM API base URL.
         callback_url: Webhook URL for response delivery.
         continuation_mode: "decision" or "instruction" response mode.
+        department: Optional department id for routing metadata.
+        policy_context: Optional policy/risk evidence envelope.
+        approval_requirements: Optional expected approval evidence.
+        decision_context: Optional full decision evidence envelope.
     Returns:
         A LangChain tool function compatible with ToolNode.
 
@@ -56,6 +64,9 @@ def centcom_tool(
         priority: str = "normal",
         required_role: str = "",
         thread_id: str = "",
+        risk_level: str = "",
+        policy_trigger: str = "",
+        approval_comment_required: bool = False,
     ) -> dict:
         """Request human approval for an action. Use this when you need a human
         to review or approve something before proceeding.
@@ -66,6 +77,9 @@ def centcom_tool(
             type: Interaction type - "yes_no", "free_text", or "approval".
             priority: "normal" (10 min SLA) or "urgent" (3 min SLA).
             required_role: Role required to answer (e.g. "manager"). Empty for any operator.
+            risk_level: Optional low, medium, high, or critical risk label.
+            policy_trigger: Optional reason review is required.
+            approval_comment_required: Require reviewer justification.
         """
         key = resolved_key
         if not key:
@@ -88,6 +102,7 @@ def centcom_tool(
                         "framework": "langgraph",
                     },
                     "routing": {
+                        "department": department,
                         "required_role": required_role or None,
                         "priority": protocol_priority,
                     },
@@ -100,6 +115,12 @@ def centcom_tool(
                         "callback_url": callback_url,
                     },
                     "thread_id": contro1_thread_id,
+                    "risk_level": risk_level or None,
+                    "policy_trigger": policy_trigger or None,
+                    "policy_context": policy_context,
+                    "approval_comment_required": approval_comment_required or None,
+                    "approval_requirements": approval_requirements,
+                    "decision_context": decision_context,
                     "metadata": {NODE_NAME_KEY: "centcom_tool", "contro1_thread_id": contro1_thread_id},
                 }
             )
