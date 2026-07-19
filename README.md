@@ -1,6 +1,6 @@
 # centcom-langgraph
 
-Human approval nodes for [LangGraph](https://github.com/langchain-ai/langgraph) workflows, powered by [CENTCOM](https://contro1.com).
+Human approval and human-input nodes for [LangGraph](https://github.com/langchain-ai/langgraph) workflows, powered by [Contro1](https://contro1.com).
 
 ## Agent Integration Kit
 
@@ -10,7 +10,7 @@ To save time, give your coding agent this skill. It inspects your system, report
 https://contro1.com/agent-kit
 ```
 
-Drop a CENTCOM approval node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators respond in the CENTCOM dashboard. The operator response is delivered back to your app via webhook and used to resume the graph - no thread blocked, fully persistent.
+Drop a Contro1 request node into any LangGraph graph. The connector uses LangGraph's native `interrupt()` to pause graphs and resume them when operators approve, reject, or provide requested input in Contro1. The canonical response is delivered back to your app via webhook and used to resume the graph - no thread blocked, fully persistent.
 
 This connector normalizes requests through **Contro1 Integration Protocol v1**.
 

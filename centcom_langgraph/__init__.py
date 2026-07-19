@@ -1,4 +1,4 @@
-"""CENTCOM LangGraph Connector - Human approval nodes for LangGraph workflows."""
+"""Contro1 LangGraph connector for human approvals and human input."""
 
 from .node import centcom_approval
 from .state import CentcomState
@@ -11,4 +11,4 @@ __all__ = [
     "centcom_tool",
     "create_webhook_handler",
 ]
-__version__ = "0.2.0"
+__version__ = "0.3.0"

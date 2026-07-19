@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import hashlib
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from centcom import CentcomClient
 from langgraph.types import interrupt
@@ -14,6 +14,7 @@ from .types import CONTINUATION_MODES, INTERACTION_TYPES, NODE_NAME_KEY, THREAD_
 # Type alias: static value or callable that receives state
 Resolvable = Union[str, Callable[[dict], str]]
 ResolvableDict = Union[dict, Callable[[dict], dict], None]
+ResolvableContext = Union[str, dict[str, Any], Callable[[dict], Union[str, dict[str, Any]]]]
 
 
 def _resolve(value: Resolvable, state: dict) -> str:
@@ -38,7 +39,7 @@ def centcom_approval(
     *,
     type: Resolvable,
     question: Resolvable,
-    context: Resolvable,
+    context: ResolvableContext,
     callback_url: Resolvable,
     api_key: Optional[str] = None,
     base_url: str = "https://api.contro1.com/api/centcom/v1",
@@ -63,7 +64,7 @@ def centcom_approval(
         type: Interaction type - "yes_no", "free_text", or "approval".
               Can be a callable (state) -> str for dynamic values.
         question: The question for the human operator.
-        context: Background info displayed to the operator.
+        context: Background text or canonical structured context displayed to the operator.
         callback_url: Webhook URL for response delivery.
         api_key: CENTCOM API key. Falls back to CENTCOM_API_KEY env var.
         base_url: CENTCOM API base URL.
@@ -147,12 +148,24 @@ def centcom_approval(
         # Create the CENTCOM request (idempotent - safe to call twice)
         client = CentcomClient(api_key=key, base_url=base_url)
         try:
-            protocol_request_type = "input" if resolved_type == "free_text" else ("decision" if resolved_type == "yes_no" else "review")
+            protocol_request_type = "input" if resolved_type == "free_text" else ("decision" if resolved_type == "yes_no" else "approval")
             protocol_priority = "urgent" if priority == "urgent" else "normal"
+            if isinstance(resolved_context, dict):
+                protocol_context = dict(resolved_context)
+                protocol_context.setdefault("tool_name", node_name)
+                description = protocol_context.get("summary")
+                if not isinstance(description, str):
+                    description = ""
+            else:
+                description = resolved_context
+                protocol_context = {
+                    "tool_name": node_name,
+                    "summary": resolved_context,
+                }
             req = client.create_protocol_request(
                 {
                     "title": resolved_question,
-                    "description": resolved_context,
+                    "description": description,
                     "request_type": protocol_request_type,
                     "source": {
                         "integration": "langgraph",
@@ -166,10 +179,7 @@ def centcom_approval(
                         "required_role": required_role,
                         "priority": protocol_priority,
                     },
-                    "context": {
-                        "tool_name": node_name,
-                        "summary": resolved_context,
-                    },
+                    "context": protocol_context,
                     "continuation": {
                         "mode": continuation_mode,
                         "callback_url": resolved_callback_url,
@@ -185,7 +195,7 @@ def centcom_approval(
                     "metadata": full_metadata,
                 }
             )
-            request_id = req["id"]
+            request_id = req.get("request_id") or req["id"]
         finally:
             client.close()
 
@@ -213,6 +223,9 @@ def centcom_approval(
                 else response.get("state", "answered")
                 if isinstance(response, dict)
                 else "answered"
+            ),
+            "centcom_decision_type": (
+                response.get("decision_type") if isinstance(response, dict) else None
             ),
         }
 

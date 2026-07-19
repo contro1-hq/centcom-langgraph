@@ -90,7 +90,7 @@ def centcom_tool(
         client = CentcomClient(api_key=key, base_url=base_url)
         contro1_thread_id = _to_contro1_thread_id(thread_id) if thread_id else client.new_thread_id()
         try:
-            protocol_request_type = "input" if type == "free_text" else ("decision" if type == "yes_no" else "review")
+            protocol_request_type = "input" if type == "free_text" else ("decision" if type == "yes_no" else "approval")
             protocol_priority = "urgent" if priority == "urgent" else "normal"
             req = client.create_protocol_request(
                 {
@@ -108,7 +108,11 @@ def centcom_tool(
                     },
                     "context": {
                         "tool_name": "centcom_tool",
-                        "summary": context,
+                        "action": {
+                            "tool": "request_human_approval",
+                            "input": {"question": question, "interaction_type": type},
+                        },
+                        "agent_reported": {"justification": context},
                     },
                     "continuation": {
                         "mode": continuation_mode,
@@ -124,7 +128,7 @@ def centcom_tool(
                     "metadata": {NODE_NAME_KEY: "centcom_tool", "contro1_thread_id": contro1_thread_id},
                 }
             )
-            request_id = req["id"]
+            request_id = req.get("request_id") or req["id"]
         finally:
             client.close()
 
@@ -150,7 +154,8 @@ def centcom_tool(
                 "request_id": request_id,
                 "response": response.get("structured_response", response.get("response")),
                 "status": response.get("status", response.get("state", "answered")),
+                "decision_type": response.get("decision_type"),
             }
-        return {"request_id": request_id, "response": response, "status": "answered"}
+        return {"request_id": request_id, "response": response, "status": "answered", "decision_type": None}
 
     return request_human_approval

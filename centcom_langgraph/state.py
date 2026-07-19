@@ -24,3 +24,6 @@ class CentcomState(TypedDict, total=False):
 
     centcom_status: Optional[str]
     """Terminal status: 'answered', 'expired', 'cancelled', or 'timeout'."""
+
+    centcom_decision_type: Optional[str]
+    """Canonical decision: 'approve', 'reject', or 'respond'."""
