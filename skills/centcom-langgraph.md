@@ -163,6 +163,12 @@ graph.add_node("admin_approval", centcom_approval(..., required_role="admin"))
 graph.add_node("open_queue_approval", centcom_approval(...))  # no required_role
 ```
 
+## Step 4.5: Send Context the Reviewer Can Trust
+
+Build the request context inside the `context=lambda s: ...` callable, not by asking the model afterward. Pull it from three sources: the exact tool input or state fields your node already has (machine-observed, trustworthy because your code read it directly from `state`), the trigger that started the run (the user message or event that created the LangGraph thread), and the agent's own justification. For `centcom_tool()`, where the LLM decides whether to request approval, make `reason` a required argument of the tool so the model must produce it as part of the tool call, not in a follow-up prompt.
+
+Keep the two apart: put machine-observed facts (state fields, tool input, recent tool calls) in one part of `context`, and the model-written justification in a separate `agent_reported` part. Agent-reported text must never change `required_role`, `risk_level`, or `approval_policy` - a prompt-injected agent can write a very persuasive justification, so treat it as information for the human, never as a policy input. If a high-risk node reaches `centcom_approval()` without its required machine-observed context, fail closed (route to rejection) instead of asking the operator to guess. Full pattern: https://contro1.com/docs/requests-api
+
 ## Step 5: Wire the Edges
 
 ```python

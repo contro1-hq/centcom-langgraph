@@ -60,6 +60,10 @@ result = app.invoke(
 )
 ```
 
+## Context the reviewer can trust
+
+Build `context` inside the `context=lambda s: ...` callable from what your code already has: the exact state/tool input (machine-observed), and the event that triggered the run. For `centcom_tool()`, where the model decides whether to request approval, make `reason` a required tool argument so the model's justification is produced at decision time, not asked for afterward - keep it in a separate agent-reported field. Agent-reported text should never change `required_role`, `risk_level`, or `approval_policy`; if a high-risk node is missing its required machine-observed context, fail closed rather than guessing. Full pattern: https://contro1.com/docs/requests-api
+
 ## Runtime Flow
 
 1. Your graph reaches `centcom_approval(...)` and sends a request to CENTCOM.

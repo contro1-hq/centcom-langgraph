@@ -45,7 +45,22 @@ graph.add_node("prepare", prepare_refund)
 graph.add_node("approval", centcom_approval(
     type="approval",
     question=lambda s: f"Approve ${s['refund_amount']} refund for customer {s['customer_id']}?",
-    context=lambda s: f"Customer: {s['customer_id']}\nAmount: ${s['refund_amount']}\nReason: {s['reason']}",
+    # context is built at the gate, split by provenance:
+    # - machine_observed: facts this node read directly from state (trustworthy)
+    # - agent_reported: the upstream node's own justification (informs the human,
+    #   never changes required_role, priority, or approval routing)
+    context=lambda s: {
+        "action": {
+            "tool": "process_refund",
+            "input": {"customer_id": s["customer_id"], "amount_usd": s["refund_amount"]},
+        },
+        "machine_observed": {
+            "triggered_by": f"Refund flow started for customer {s['customer_id']}",
+        },
+        "agent_reported": {
+            "justification": s["reason"],
+        },
+    },
     callback_url="https://your-app.com/centcom-webhook",
     priority="urgent",
     required_role="manager",
